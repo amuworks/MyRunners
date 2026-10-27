@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>推し馬ボード</title>
+<style>
+:root{
+  --bg:#edf1f3;--card:#fff;--ink:#1b2a3a;--sub:#5f6f7e;--line:#d5dde2;--ac:#1f6f4a;--acx:#fff;--chip:#dfe7ea;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)
+}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#121a20;--card:#1b262e;--ink:#e6edf1;--sub:#9aabb8;--line:#2d3b45;--ac:#4fc08a;--acx:#0d2018;--chip:#26343e}
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Hiragino Sans","Noto Sans JP","Yu Gothic",system-ui,sans-serif}
+.wrap{max-width:640px;margin:0 auto;padding:16px 14px 90px}
+h1{font-size:22px;margin:4px 0 2px;letter-spacing:.02em}
+.count{color:var(--sub);font-size:14px;margin:0 0 12px}
+input,select,textarea,button{font:inherit;color:inherit}
+.search{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:10px 0 4px;-webkit-overflow-scrolling:touch}
+.chip{flex:none;border:1px solid var(--line);background:var(--chip);border-radius:999px;padding:5px 13px;font-size:14px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--ac);color:var(--acx);border-color:var(--ac)}
+.card{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--sc,var(--line));border-radius:12px;padding:12px 14px;margin:10px 0}
+.top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.name{font-weight:700;font-size:18px;margin-right:auto}
+.badge{font-size:13px;padding:1px 10px;border-radius:999px;background:var(--sc,var(--chip));color:#fff}
+.meta{font-size:14px;color:var(--sub);margin-top:2px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:baseline}
+.next{margin-top:6px;font-size:15px}
+.memo{margin-top:6px;font-size:14px;white-space:pre-wrap;color:var(--sub)}
+.edit{margin-top:8px;border:1px solid var(--line);background:none;border-radius:8px;padding:4px 12px;font-size:14px;cursor:pointer}
+.empty{text-align:center;color:var(--sub);padding:40px 10px}
+.bar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;justify-content:center;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--line)}
+.bar button{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px 14px;cursor:pointer}
+.bar .main{background:var(--ac);color:var(--acx);border-color:var(--ac);font-weight:700;flex:1;max-width:260px}
+dialog{width:min(92vw,520px);border:0;border-radius:14px;padding:16px;background:var(--card);color:var(--ink)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+label{display:block;font-size:14px;color:var(--sub);margin:10px 0 3px}
+dialog input,dialog select,dialog textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+textarea{min-height:90px;resize:vertical}
+.row{display:flex;gap:8px;margin-top:14px}
+.row button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);cursor:pointer}
+.row .ok{background:var(--ac);color:var(--acx);border-color:var(--ac);font-weight:700}
+.row .del{color:#c0392b}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>推し馬ボード</h1>
+  <p class="count" id="count"></p>
+  <input class="search" id="q" type="search" placeholder="馬名・メモで検索">
+  <div class="chips" id="chips"></div>
+  <div id="list"></div>
+</div>
+
+<div class="bar">
+  <button id="exp">書き出し</button>
+  <button class="main" id="add">馬を追加</button>
+  <button id="imp">読み込み</button>
+</div>
+
+<dialog id="dlg">
+  <div id="dtitle" style="font-weight:700;font-size:18px">馬を追加</div>
+  <label for="f-name">馬名</label>
+  <input id="f-name" autocomplete="off">
+  <label for="f-group">グループ（例：推し、ダート、引退済）</label>
+  <input id="f-group" list="glist" autocomplete="off">
+  <datalist id="glist"></datalist>
+  <label for="f-status">状態</label>
+  <select id="f-status"></select>
+  <label for="f-next">次走（例：11/30 ジャパンカップ）</label>
+  <input id="f-next" autocomplete="off">
+  <label for="f-id">馬ID（自動チェック用・あとで入力でOK）</label>
+  <input id="f-id" inputmode="numeric" autocomplete="off">
+  <label for="f-memo">メモ</label>
+  <textarea id="f-memo"></textarea>
+  <div class="row">
+    <button id="f-del" class="del">削除</button>
+    <button id="f-cancel">キャンセル</button>
+    <button id="f-ok" class="ok">保存</button>
+  </div>
+</dialog>
+
+<script>
+var KEY="oshiuma-board-v1";
+var STATUS={"入厩":"#1f6f4a","放牧":"#8a6d1f","登録":"#2d6cb5","抹消":"#8a3b3b","地方転入":"#7a4aa5","引退":"#5f6f7e","不明":"#7b8794"};
+var horses=[],filter="すべて",editing=null;
+
+function load(){
+  try{horses=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){horses=[]}
+}
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify(horses))}catch(e){alert("この環境では保存できません。ブラウザの設定を確認してください。")}
+}
+function $(id){return document.getElementById(id)}
+function gcolor(g){
+  var h=0;for(var i=0;i<g.length;i++)h=(h*31+g.charCodeAt(i))%360;
+  return "hsl("+h+",60%,50%)";
+}
+function esc(s){return String(s||"").replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+
+function render(){
+  var groups=[];
+  horses.forEach(function(h){if(h.group&&groups.indexOf(h.group)<0)groups.push(h.group)});
+  if(filter!=="すべて"&&groups.indexOf(filter)<0)filter="すべて";
+  $("chips").innerHTML=["すべて"].concat(groups).map(function(g){
+    return '<button class="chip" data-g="'+esc(g)+'" aria-pressed="'+(g===filter)+'">'+esc(g)+'</button>';
+  }).join("");
+  $("glist").innerHTML=groups.map(function(g){return '<option value="'+esc(g)+'">'}).join("");
+  var q=$("q").value.trim().toLowerCase();
+  var shown=horses.filter(function(h){
+    if(filter!=="すべて"&&h.group!==filter)return false;
+    return !q||(h.name+" "+(h.memo||"")+" "+(h.next||"")).toLowerCase().indexOf(q)>=0;
+  });
+  $("count").textContent=horses.length+"頭を登録中"+(shown.length!==horses.length?"（"+shown.length+"頭を表示）":"");
+  if(!shown.length){
+    $("list").innerHTML='<div class="empty">'+(horses.length?"条件に合う馬がいません。":"まだ馬がいません。下の「馬を追加」から登録できます。")+'</div>';
+    return;
+  }
+  $("list").innerHTML=shown.map(function(h){
+    var i=horses.indexOf(h),sc=STATUS[h.status]||STATUS["不明"];
+    return '<div class="card" style="--sc:'+sc+'"><div class="top"><span class="name">'+esc(h.name)+'</span><span class="badge">'+esc(h.status||"不明")+'</span></div>'
+      +(h.group?'<div class="meta"><span class="dot" style="background:'+gcolor(h.group)+'"></span>'+esc(h.group)+'</div>':'')
+      +(h.next?'<div class="next">次走：'+esc(h.next)+'</div>':'')
+      +(h.memo?'<div class="memo">'+esc(h.memo)+'</div>':'')
+      +'<button class="edit" data-i="'+i+'">編集</button></div>';
+  }).join("");
+}
+
+function openDlg(i){
+  editing=i;
+  var h=i===null?{status:"不明"}:horses[i];
+  $("dtitle").textContent=i===null?"馬を追加":"馬を編集";
+  $("f-name").value=h.name||"";$("f-group").value=h.group||"";$("f-status").value=h.status||"不明";
+  $("f-next").value=h.next||"";$("f-id").value=h.id||"";$("f-memo").value=h.memo||"";
+  $("f-del").style.display=i===null?"none":"";
+  $("dlg").showModal();
+}
+
+$("f-status").innerHTML=Object.keys(STATUS).map(function(s){return "<option>"+s+"</option>"}).join("");
+$("add").onclick=function(){openDlg(null)};
+$("f-cancel").onclick=function(){$("dlg").close()};
+$("f-ok").onclick=function(){
+  var name=$("f-name").value.trim();
+  if(!name){alert("馬名を入力してください。");return}
+  var h={name:name,group:$("f-group").value.trim(),status:$("f-status").value,next:$("f-next").value.trim(),id:$("f-id").value.trim(),memo:$("f-memo").value.trim()};
+  if(editing===null)horses.unshift(h);else horses[editing]=h;
+  save();render();$("dlg").close();
+};
+$("f-del").onclick=function(){
+  if(confirm(horses[editing].name+" を削除しますか？")){horses.splice(editing,1);save();render();$("dlg").close()}
+};
+$("list").onclick=function(e){var b=e.target.closest(".edit");if(b)openDlg(+b.dataset.i)};
+$("chips").onclick=function(e){var b=e.target.closest(".chip");if(b){filter=b.dataset.g;render()}};
+$("q").oninput=render;
+
+$("exp").onclick=function(){
+  var t=JSON.stringify(horses,null,1);
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(function(){alert("コピーしました。メモ帳などに貼り付けて保管できます。")},function(){prompt("コピーして保管してください",t)});
+  }else prompt("コピーして保管してください",t);
+};
+$("imp").onclick=function(){
+  var t=prompt("書き出したデータを貼り付けてください（今のデータは置き換わります）");
+  if(!t)return;
+  try{var d=JSON.parse(t);if(!Array.isArray(d))throw 0;horses=d;save();render()}catch(e){alert("読み込めませんでした。書き出したデータをそのまま貼り付けてください。")}
+};
+
+load();render();
+</script>
+</body>
+</html>
